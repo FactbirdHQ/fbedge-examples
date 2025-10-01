@@ -1,0 +1,28 @@
+# Include documentation and configuration files
+include README.md
+include LICENSE
+include requirements.txt
+include pyproject.toml
+include setup.py
+
+# Include Jupyter notebooks
+include *.ipynb
+recursive-include . *.ipynb
+
+# Include environment files
+include .env.example
+global-exclude .env
+
+# Include Python source files
+recursive-include . *.py
+
+# Exclude development and cache files
+global-exclude __pycache__
+global-exclude *.py[co]
+global-exclude .DS_Store
+global-exclude *.swp
+global-exclude *.swo
+
+# Exclude git files
+global-exclude .git*
+global-exclude .github
