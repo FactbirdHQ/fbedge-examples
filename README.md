@@ -51,6 +51,7 @@ jupyter notebook examples.ipynb
 ```
 
 The notebook walks through:
+
 1. AWS credential setup and testing
 2. Kinesis Video Streams consumption
 3. Data capture and organization
@@ -91,17 +92,21 @@ job_created, job_id, job_arn = create_deployment_job(
 ## 🔧 Core Modules
 
 ### `video_capture.py`
+
 AWS Kinesis Video Streams integration for consuming video data from Factbird EDGE devices.
 
 **Key Functions:**
+
 - `test_aws_connection()` - Test AWS credentials and connectivity
 - `setup_kvs_stream()` - Configure KVS stream connections
 - `KVSStreamConsumer` - Consume video streams and extract frames
 
 ### `iot_deployment.py`
+
 AWS IoT Core integration for deploying files to Factbird EDGE devices.
 
 **Key Functions:**
+
 - `check_iot_thing_exists()` - Verify IoT thing registration
 - `create_deployment_job()` - Create download jobs for edge devices
 - `check_job_status()` - Monitor deployment job progress
@@ -129,16 +134,19 @@ data/
 ## 🆘 Troubleshooting
 
 ### AWS Connection Issues
+
 - Check your AWS credentials are current (temporary tokens expire)
 - Verify IAM permissions for KVS, IoT Core, and STS
 - Test with `test_aws_connection()` function
 
 ### KVS Stream Issues
+
 - Ensure Factbird EDGE device is actively streaming to KVS
 - Check stream exists with correct Stream ID
 - Verify stream is in ACTIVE status
 
 ### IoT Deployment Issues
+
 - Verify IoT thing is registered in AWS IoT Core
 - Check thing ARN matches your device
 - Ensure deployment URL is publicly accessible
