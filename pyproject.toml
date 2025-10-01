@@ -15,28 +15,21 @@ keywords = ["edge-ai", "video-streaming", "hailo", "computer-vision"]
 
 # Core dependencies
 dependencies = [
+    "boto3>=1.28.0",
     "opencv-python>=4.8.0",
     "numpy>=1.24.0",
     "python-dotenv>=1.0.0",
+    "Pillow>=9.0.0",
 ]
 
 [project.optional-dependencies]
-ml = [
-    "torch>=2.0.0",
-    "ultralytics>=8.0.0",
-    "onnx>=1.14.0",
-]
 jupyter = [
     "jupyter>=1.0.0",
     "notebook>=7.0.0",
+    "ipython>=8.0.0",
+    "matplotlib>=3.0.0",
 ]
 dev = [
     "pytest>=7.4.0",
     "black>=23.0.0",
 ]
-aws = [
-    "boto3>=1.28.0",
-]
-
-[project.scripts]
-fbedge-setup = "aws_video_stream:quick_start_video_capture"
