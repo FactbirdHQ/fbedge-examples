@@ -44,6 +44,7 @@ models/onnx/*.onnx
 # IDE
 .vscode/
 .idea/
+.claude/
 *.swp
 *.swo
 *~
