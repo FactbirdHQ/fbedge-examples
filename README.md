@@ -47,8 +47,8 @@ The `byom-uploader` user has exactly two policies:
 
 - `s3:PutObject` on the BYOM bucket
 - KVS read: `kinesisvideo:GetDataEndpoint`,
-  `kinesis-video-archived-media:GetHLSStreamingSessionURL`,
-  `kinesis-video-archived-media:GetDASHStreamingSessionURL`
+  `kinesisvideo:GetHLSStreamingSessionURL`,
+  `kinesisvideo:GetDASHStreamingSessionURL`
 
 Any call outside that surface will 403.
 
