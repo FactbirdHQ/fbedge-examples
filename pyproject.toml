@@ -1,35 +1,68 @@
 [build-system]
-requires = ["setuptools>=61.0", "wheel"]
-build-backend = "setuptools.build_meta"
+requires = ["hatchling"]
+build-backend = "hatchling.build"
 
 [project]
-name = "fbedge-examples"
-version = "1.0.0"
-authors = [
-    {name = "Claude Code Assistant"},
-]
-description = "Edge AI Examples with AWS Integration"
+name = "factbird-byom"
+version = "0.1.0"
+description = "Python SDK for the Factbird Edge BYOM feature — deploy your own compiled model, view your device's live stream."
 readme = "README.md"
-requires-python = ">=3.8"
-keywords = ["edge-ai", "video-streaming", "hailo", "computer-vision"]
+requires-python = ">=3.11"
+license = { text = "MIT" }
+authors = [{ name = "Factbird", email = "support@factbird.com" }]
+keywords = ["factbird", "edge", "byom", "kvs", "iot"]
+classifiers = [
+    "Development Status :: 3 - Alpha",
+    "Intended Audience :: Developers",
+    "License :: OSI Approved :: MIT License",
+    "Operating System :: OS Independent",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Programming Language :: Python :: 3.13",
+    "Topic :: Software Development :: Libraries :: Python Modules",
+]
 
-# Core dependencies
 dependencies = [
-    "boto3>=1.28.0",
-    "opencv-python>=4.8.0",
-    "numpy>=1.24.0",
-    "python-dotenv>=1.0.0",
-    "Pillow>=9.0.0",
+    "boto3>=1.34",
+    "botocore>=1.34",
 ]
 
 [project.optional-dependencies]
-jupyter = [
-    "jupyter>=1.0.0",
-    "notebook>=7.0.0",
-    "ipython>=8.0.0",
-    "matplotlib>=3.0.0",
-]
 dev = [
-    "pytest>=7.4.0",
-    "black>=23.0.0",
+    "pytest>=7.4",
+    "pytest-cov>=4.1",
+    "moto[s3,kinesisvideo]>=5.0",
+    "mypy>=1.8",
+    "ruff>=0.5",
+    "boto3-stubs[s3,kinesisvideo,kinesis-video-archived-media]>=1.34",
 ]
+examples = [
+    "jupyter>=1.0",
+]
+
+[project.scripts]
+factbird-byom = "factbird_byom.cli:main"
+
+[project.urls]
+Homepage = "https://github.com/FactbirdHQ/fbedge-examples"
+Issues = "https://github.com/FactbirdHQ/fbedge-examples/issues"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/factbird_byom"]
+
+[tool.mypy]
+python_version = "3.11"
+strict = true
+files = ["src/factbird_byom"]
+
+[tool.ruff]
+line-length = 100
+target-version = "py311"
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "UP", "B", "SIM"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+addopts = "-ra"

@@ -1,156 +1,142 @@
-# Factbird Edge AI Examples
+# factbird-byom
 
-This repository provides guidance for working with custom AI models on the Factbird EDGE, including AWS Kinesis Video Streams consumption and IoT Core deployment workflows.
+Python SDK for the **Factbird Edge BYOM** (Bring Your Own Model) feature.
 
-## 📁 Project Structure
+You've trained and compiled your own edge AI model. This SDK lets you:
 
-```
-fbedge-examples/
-├── examples.ipynb              # Main Jupyter notebook with complete workflow
-├── video_capture.py            # KVS stream consumption and data capture
-├── iot_deployment.py           # AWS IoT job creation for edge deployment
-├── requirements.txt            # Python package dependencies
-├── pyproject.toml             # Python packaging configuration
-├── setup.py                    # Package setup
-└── README.md                   # This file
-```
+1. **Deploy** the compiled artifact to a specific Factbird Edge device.
+2. **View** that device's live KVS stream through a signed HLS or DASH URL.
 
-## 🚀 Quick Start
+That's the entire surface. No IoT job wrangling, no local camera capture, no
+decoder shipped with the SDK — you just upload a file and get a URL.
 
-### 1. Installation
+## Install
 
 ```bash
-# Clone the repository
-git clone https://github.com/FactbirdHQ/fbedge-examples.git
-cd fbedge-examples
-
-# Install dependencies
-pip install -r requirements.txt
-
-# Or install as package with optional extras
-pip install -e .              # Core dependencies
-pip install -e .[jupyter]     # Jupyter notebook support
-pip install -e .[dev]         # Development tools
+pip install -e .
 ```
 
-### 2. AWS Configuration
+Requires Python 3.11+.
 
-Configure your AWS credentials for Kinesis Video Streams and IoT Core access. Use temporary credentials from AWS SSO or STS:
+## Authentication
+
+Factbird gives you long-lived access keys for the IAM user **`byom-uploader`**.
+These are rotated roughly once a year and handed to you out-of-band.
+
+Export them as standard AWS env vars (or put them in `~/.aws/credentials`),
+along with the account ID Factbird gave you:
 
 ```bash
-# Get temporary credentials
-aws sts get-session-token --duration-seconds 3600
+export AWS_ACCESS_KEY_ID=AKIA...
+export AWS_SECRET_ACCESS_KEY=...
+export AWS_REGION=eu-west-1
+export AWS_ACCOUNT_ID=...   # given to you by Factbird with the access keys
 ```
 
-Add credentials to your notebook or script as shown in `examples.ipynb`.
+The SDK just takes a `boto3.Session`, so anything boto3's credential chain
+supports (env vars, profiles, SSO) works.
 
-### 3. Run the Notebook
+### Bucket name
 
-```bash
-jupyter notebook examples.ipynb
-```
+You never type the bucket name. The BYOM S3 bucket follows the convention
+`{aws_account_id}-{region}-byom`, and the SDK builds it from `ClientConfig`'s
+`account_id` and `region`. Pass the account ID and region Factbird gave you
+alongside the credentials, and the rest is handled for you.
 
-The notebook walks through:
+The `byom-uploader` user has exactly two policies:
 
-1. AWS credential setup and testing
-2. Kinesis Video Streams consumption
-3. Data capture and organization
-4. IoT deployment job creation
+- `s3:PutObject` on the BYOM bucket
+- KVS read: `kinesisvideo:GetDataEndpoint`,
+  `kinesis-video-archived-media:GetHLSStreamingSessionURL`,
+  `kinesis-video-archived-media:GetDASHStreamingSessionURL`
 
-## 📺 KVS Stream Data Capture
+Any call outside that surface will 403.
+
+## Deploy a model
 
 ```python
-from video_capture import test_aws_connection, setup_kvs_stream, KVSStreamConsumer
+import os
 
-# Test AWS connection
-aws_connected, aws_session = test_aws_connection(AWS_CONFIG)
+import boto3
+from factbird_byom import ClientConfig, FactbirdByomClient
 
-# Setup KVS stream
-kvs_config = setup_kvs_stream(aws_session, "your_stream_id", AWS_CONFIG)
-
-# Consume video data from edge device
-consumer = KVSStreamConsumer(aws_session, kvs_config)
-success = consumer.consume_stream(session_dir, stream_config)
-```
-
-## 🚀 IoT Deployment
-
-```python
-from iot_deployment import check_iot_thing_exists, create_deployment_job
-
-# Check if IoT thing exists
-thing_exists, thing_info = check_iot_thing_exists(aws_session, "thing_id")
-
-# Create download job for edge device
-job_created, job_id, job_arn = create_deployment_job(
-    aws_session,
-    thing_info['thingArn'],
-    "https://your-download-url.com/model.hef"
+client = FactbirdByomClient(
+    session=boto3.Session(),
+    config=ClientConfig(
+        region=os.environ["AWS_REGION"],
+        account_id=os.environ["AWS_ACCOUNT_ID"],
+    ),
 )
+
+result = client.deployment.deploy("./model.hef", device_id="edge-01")
+print(f"s3://{result.bucket}/{result.key}")
+# s3://<account-id>-<region>-byom/edge-01/1714000000/model.hef
 ```
 
-## 🔧 Core Modules
+The SDK uploads the file to `{device_id}/{utc_epoch}/{model_name}.hef` inside
+the bucket. The Factbird backend reacts to the S3 event and creates the IoT
+deployment job server-side — you don't need any IoT permissions.
 
-### `video_capture.py`
+`device_id` is **not verified client-side**. Pass the correct IoT thing-id;
+server-side validation handles the rest.
 
-AWS Kinesis Video Streams integration for consuming video data from Factbird EDGE devices.
+Or from the shell:
 
-**Key Functions:**
-
-- `test_aws_connection()` - Test AWS credentials and connectivity
-- `setup_kvs_stream()` - Configure KVS stream connections
-- `KVSStreamConsumer` - Consume video streams and extract frames
-
-### `iot_deployment.py`
-
-AWS IoT Core integration for deploying files to Factbird EDGE devices.
-
-**Key Functions:**
-
-- `check_iot_thing_exists()` - Verify IoT thing registration
-- `create_deployment_job()` - Create download jobs for edge devices
-- `check_job_status()` - Monitor deployment job progress
-
-## 💾 Local Storage Organization
-
-```
-data/
-└── raw/
-    └── {stream_id}/
-        └── {YYYYMMDD_HHMMSS}/
-            ├── frame_001.jpg
-            ├── frame_002.jpg
-            └── session_metadata.json
+```bash
+factbird-byom deploy ./model.hef --device-id edge-01
+factbird-byom deploy ./model.hef --device-id edge-01 --model-name yolov8n.hef
 ```
 
-## 🎯 Workflow
+## View the live stream
 
-1. **Setup** - Configure AWS credentials (temporary credentials recommended)
-2. **Data Capture** - Consume video streams from Factbird EDGE via Kinesis Video Streams
-3. **Data Annotation** - Annotate captured frames using your preferred tool
-4. **Model Training** - Train custom models (outside scope of this repo)
-5. **Deployment** - Use IoT jobs to deploy models to Factbird EDGE devices
+```python
+with client.streams.open("edge-01") as kvs:
+    print(kvs.hls_url(expires_in=300))   # paste into Safari, VLC, ffplay, QuickTime
+    print(kvs.dash_url(expires_in=300))  # paste into VLC, ffplay
+```
 
-## 🆘 Troubleshooting
+Or from the shell — no Python script needed:
 
-### AWS Connection Issues
+```bash
+factbird-byom view edge-01              # prints HLS URL and launches default viewer
+factbird-byom view edge-01 --dash       # DASH instead of HLS
+factbird-byom view edge-01 --no-open    # just print the URL
+factbird-byom view edge-01 --expires 600
+```
 
-- Check your AWS credentials are current (temporary tokens expire)
-- Verify IAM permissions for KVS, IoT Core, and STS
-- Test with `test_aws_connection()` function
+### Players
 
-### KVS Stream Issues
+| Player | HLS | DASH |
+|---|---|---|
+| Safari (macOS / iOS) | ✅ native | — |
+| VLC | ✅ | ✅ |
+| ffplay / ffmpeg | ✅ | ✅ |
+| QuickTime | ✅ | — |
+| Chrome/Firefox desktop | needs hls.js | needs dash.js |
 
-- Ensure Factbird EDGE device is actively streaming to KVS
-- Check stream exists with correct Stream ID
-- Verify stream is in ACTIVE status
+`expires_in` is capped by AWS: min 300 s, max 43200 s (12 h).
 
-### IoT Deployment Issues
+## Examples
 
-- Verify IoT thing is registered in AWS IoT Core
-- Check thing ARN matches your device
-- Ensure deployment URL is publicly accessible
+The `examples/` folder ships runnable scripts and a notebook:
 
-## 📞 Support
+- `examples/deploy_model.py` — single-shot deploy.
+- `examples/view_stream.py` — mint an HLS/DASH URL and optionally `open` it.
+- `examples/quickstart.ipynb` — both flows end-to-end.
 
-For questions or issues, please create an issue in this repository.
+## Troubleshooting
+
+**`AuthError: AWS rejected ... (InvalidAccessKeyId)`**
+Your `byom-uploader` keys may have been rotated. Ask Factbird for new ones.
+
+**`StreamNotFoundError: KVS stream 'edge-01' was not found`**
+The stream is only visible in KVS while the edge device is actively
+streaming. Check that the device is powered on and connected.
+
+**`ValueError: device_id is required`**
+`deploy()` requires `device_id=...`; it identifies which device the backend
+should target for the IoT job.
+
+## License
+
+MIT.
